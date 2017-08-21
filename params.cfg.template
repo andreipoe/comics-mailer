@@ -1,0 +1,4 @@
+[mailgun]
+api_key = aabbcc
+domain  = mail.tld
+
