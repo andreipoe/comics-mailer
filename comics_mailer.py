@@ -9,9 +9,9 @@ from configparser import ConfigParser
 import feedparser
 from bs4 import BeautifulSoup as soup
 
-CONFIG_FOLDER         = os.path.join(Path.home(), '.config/comics-mailer')
-CONFIG_FILE_PARAMS    = os.path.join(CONFIG_FOLDER, 'params.cfg')
-CONFIG_FILE_WATCHLIST = os.path.join(CONFIG_FOLDER, 'watchlist.lst')
+CONFIG_FOLDER         = Path.home() / '.config/comics-mailer'
+CONFIG_FILE_PARAMS    = str(CONFIG_FOLDER / 'params.cfg')
+CONFIG_FILE_WATCHLIST = str(CONFIG_FOLDER / 'watchlist.lst')
 
 CONFIG_SECTION_MAILGUN    = 'mailgun'
 CONFIG_KEY_MAILGUN_KEY    = 'api_key'
@@ -98,6 +98,26 @@ def get_rss_entries():
 def parse_comic_list(entry):
     return list(soup(entry.summary, "lxml").find_all('p')[4].stripped_strings)
 
+# Return a list of the comics matched from the watchlist
+def match_comics(comics, watchlist, only_once=True):
+    # Filter based on watchlist
+    matched = [c for watched in watchlist for c in comics if watched.lower() in c.lower()]
+
+    # Remove non-comics from list, e.g. games and merch
+    matched = [c.split(',')[2] for c in matched if c.split(',')[1].upper() == c.split(',')[1]]
+
+    # There may be several variants of the same comic being released at the same time, so it is often
+    # redundant to consider all titles that match
+    if only_once:
+        # Keep the title only
+        title_only = re.compile(r'[^#]+#[\d]+')
+        matched = [title_only.match(c).group() for c in matched if title_only.match(c)]
+
+        # Remove duplicates
+        matched = list(set(matched))
+
+    return matched
+
 if __name__ == '__main__':
     # TODO: Consider adding CLI arguments for the mailgun params
     # TODO: add a --setup option that walks thourgh typing in the settings and setting the watch list
@@ -117,7 +137,8 @@ if __name__ == '__main__':
     latest = get_rss_entries()[0]
 
     comics = parse_comic_list(latest)
-    # TODO: get a list of watched comics and seatch through the csv
+    print(match_comics(comics, watchlist))
+    # TODO: parameter to show only one match per watch comic
     # TODO: send a mailgun for the matched comics
     # TODO: save the date of the last update
 
