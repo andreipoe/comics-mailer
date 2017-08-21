@@ -1,4 +1,6 @@
 [mailgun]
 api_key = aabbcc
 domain  = mail.tld
+from = Comics Mailer Script <comics-mailer@mailgun.org>
+to = Your Email <email@tld.com>
 
