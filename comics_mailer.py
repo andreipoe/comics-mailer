@@ -17,6 +17,7 @@ from bs4 import BeautifulSoup as soup
 CONFIG_FOLDER         = Path.home() / '.config/comics-mailer'
 CONFIG_FILE_PARAMS    = str(CONFIG_FOLDER / 'params.cfg')
 CONFIG_FILE_WATCHLIST = str(CONFIG_FOLDER / 'watchlist.lst')
+CONFIG_FOLDER         = str(CONFIG_FOLDER) # os.path methods require a string
 
 # Config keys
 CONFIG_SECTION_MAILGUN    = 'mailgun'
@@ -28,6 +29,7 @@ CONFIG_KEY_MAILGUN_TO     = 'to'     # The recipient, e.g. as "Name <email@tld.m
 # Data files
 DATA_FOLDER           = Path.home() / '.local/share/comics-mailer'
 DATA_FILE_LAST_UPDATE = str(DATA_FOLDER / 'last_update')
+DATA_FOLDER           = str(DATA_FOLDER) # os.path methods require a string
 
 # Email preferences
 MAILGUN_SUBJECT_UPDATE = '[comics-mailer] New watched comics available!'
@@ -228,6 +230,8 @@ def match_comics(comics, watchlist, only_once=True):
         # Remove duplicates
         matched = list(set(matched))
 
+    # TODO: remove any duplicates
+
     return matched
 
 if __name__ == '__main__':
@@ -272,4 +276,6 @@ if __name__ == '__main__':
 
     # Save the date of the last update
     save_last_update()
+
+    # TODO: add an option to keep a local log of all matches
 
