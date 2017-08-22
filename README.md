@@ -11,7 +11,7 @@ Clone this repository using `git`.
 Comics Mailer uses python3. You can install the dependcies using:
 
 ```
-pip3 install --upgrade feedparser beauutifulsoup4
+pip3 install --upgrade feedparser beauutifulsoup4 requests
 ```
 
 **TODO**: A future version may allow installation through pip.
