@@ -21,17 +21,21 @@ CONFIG_FOLDER         = str(CONFIG_FOLDER) # os.path methods require a string
 
 # Config keys
 CONFIG_SECTION_MAILGUN    = 'mailgun'
-CONFIG_KEY_MAILGUN_KEY    = 'api_key'# Your API key
-CONFIG_KEY_MAILGUN_DOMAIN = 'domain' # Your doimain name in your base API URL
-CONFIG_KEY_MAILGUN_FROM   = 'from'   # The email sender, e.g. as "Name <email@tld.me>"
-CONFIG_KEY_MAILGUN_TO     = 'to'     # The recipient, e.g. as "Name <email@tld.me>"
+CONFIG_KEY_MAILGUN_KEY    = 'api_key' # Your API key
+CONFIG_KEY_MAILGUN_DOMAIN = 'domain'  # Your doimain name in your base API URL
+CONFIG_KEY_MAILGUN_FROM   = 'from'    # The email sender, e.g. as "Name <email@tld.me>"
+CONFIG_KEY_MAILGUN_TO     = 'to'      # The recipient, e.g. as "Name <email@tld.me>"
+
+CONFIG_SECTION_BEHAVIOUR               = 'behaviour'
+CONFIG_KEY_BEHAVIOUR_MAIL_ON_ERROR     = 'mail_on_error' # Whether to send an email when an error occurs, detailing the error
+CONFIG_DEFAULT_BEHAVIOUR_MAIL_ON_ERROR = True
 
 # Data files
 DATA_FOLDER           = Path.home() / '.local/share/comics-mailer'
 DATA_FILE_LAST_UPDATE = str(DATA_FOLDER / 'last_update')
 DATA_FOLDER           = str(DATA_FOLDER) # os.path methods require a string
 
-# Email preferences
+# Email text
 MAILGUN_SUBJECT_UPDATE = '[comics-mailer] New watched comics available!'
 MAILGUN_BODY_UPDATE    = '''\
 My Lord,
@@ -64,7 +68,7 @@ DEBUG_PARAMS      = 'params'
 DEBUG_DATA        = 'data'
 DEBUG_WATCHLIST   = 'watchlist'
 DEBUG_FORCEUPDATE = 'forceupdate'
-# DEBUG           = "|".join([DEBUG_NOMAIL, DEBUG_DATA, DEBUG_FORCEUPDATE])
+# DEBUG           = "|".join([DEBUG_PARAMS, DEBUG_NOMAIL, DEBUG_DATA, DEBUG_FORCEUPDATE])
 DEBUG             = ''
 
 # Error codes
@@ -74,19 +78,26 @@ ERR_NO_CONFIG      = -3
 ERR_NO_WATCHLIST   = -4
 
 # Error code messages
-ERR_MSG_NO_FEED = 'Could not retrieve the comics feed from ComicList.com. Double check your URL and make sure that the site is still up.'
-ERR_MSG_GENERIC = "You'd have to check the code to figure out what this error means (they're all labeled towards the top)."
+ERR_MSG_NO_FEED   = 'Could not retrieve the comics feed from ComicList.com. Double check your URL and make sure that the site is still up.'
+ERR_MSG_NO_CONFIG = "No configuration file found at at " + CONFIG_FILE_PARAMS + ". Please see the README for details on creating one."
+ERR_MSG_GENERIC   = "You'd have to check the code to figure out what this error means (they're all labeled towards the top)."
+
+# Global behaviour settings
+behaviour_mail_on_error = CONFIG_DEFAULT_BEHAVIOUR_MAIL_ON_ERROR
 
 # Print an error message and exit
 def err_exit(msg, code=1):
     print(msg, file=sys.stderr)
+
+    if behaviour_mail_on_error:
+        send_mail_error(code, msg)
+
     sys.exit(code)
 
 # Read the required mailgun parameters from the config file
 def read_mailgun_params():
     if not os.path.isfile(CONFIG_FILE_PARAMS):
-        err_exit("No configuration file found at at " + CONFIG_FILE_PARAMS + \
-            ". Please see the README for details on creating one.", ERR_NO_CONFIG)
+        err_exit(ERR_MSG_NO_CONFIG, ERR_NO_CONFIG)
 
     config = ConfigParser()
     config.read(CONFIG_FILE_PARAMS)
@@ -105,6 +116,22 @@ def read_mailgun_params():
         config[CONFIG_SECTION_MAILGUN][CONFIG_KEY_MAILGUN_DOMAIN], \
         config[CONFIG_SECTION_MAILGUN][CONFIG_KEY_MAILGUN_FROM],   \
         config[CONFIG_SECTION_MAILGUN][CONFIG_KEY_MAILGUN_TO]
+
+# Read custom behaviour parameters from the config file
+def read_behaviour_params():
+    if not os.path.isfile(CONFIG_FILE_PARAMS):
+        err_exit(ERR_MSG_NO_CONFIG, ERR_NO_CONFIG)
+
+    config = ConfigParser()
+    config.read(CONFIG_FILE_PARAMS)
+
+    try:
+        behaviour_section = config[CONFIG_SECTION_BEHAVIOUR]
+        mail_on_error     = behaviour_section.getboolean(CONFIG_KEY_BEHAVIOUR_MAIL_ON_ERROR, CONFIG_DEFAULT_BEHAVIOUR_MAIL_ON_ERROR)
+
+        return mail_on_error
+    except KeyError:
+        return CONFIG_DEFAULT_BEHAVIOUR_MAIL_ON_ERROR
 
 # Read the watched comics list
 def read_watchlist():
@@ -163,12 +190,15 @@ def send_mailgun(subject, body):
             "text": body})
 
 # Send an error email when the check cannot be performed
-# TODO: Add a parameter to disable error emails
-def send_mail_error(errcode):
+def send_mail_error(errcode, msg=None):
     body = MAILGUN_BODY_ERROR.replace('$e', str(errcode))
 
     if errcode == ERR_NO_FEED:
         err_msg = ERR_MSG_NO_FEED
+    elif errocode == ERR_NO_CONFIG:
+        err_msg = ERR_MSG_NO_CONFIG
+    elif msg is not None:
+        err_msg = msg
     else:
         err_msg = ERR_MSG_GENERIC
     body = body.replace('$m', err_msg)
@@ -201,7 +231,6 @@ def get_entry_date(entry):
 def get_rss_entries(since=None):
     feed = feedparser.parse(FEED_URL)
     if len(feed.entries) == 0 or 'bozo_exception' in feed:
-        send_mail_error(ERR_NO_FEED)
         err_exit("Could not retrieve feed contents. Is your URL working?", ERR_NO_FEED)
 
     if since is None:
@@ -230,15 +259,13 @@ def match_comics(comics, watchlist, only_once=True):
         # Remove duplicates
         matched = list(set(matched))
 
-    # TODO: remove any duplicates
-
     return matched
 
 if __name__ == '__main__':
     # TODO: Consider adding CLI arguments for the mailgun params
     # TODO: add a --setup option that walks thourgh typing in the settings and setting the watch list
 
-    # Read the config parameters
+    # Read the Mailgun config parameters
     mailgun_key, mailgun_domain, mailgun_from, mailgun_to = read_mailgun_params()
     paramlist = [mailgun_key, mailgun_domain, mailgun_from, mailgun_to]
     if None in paramlist:
@@ -247,6 +274,12 @@ if __name__ == '__main__':
 
     if DEBUG_PARAMS in DEBUG:
         print("Params:", paramlist)
+
+    # Read the behaviour config paramters
+    behaviour_mail_on_error = read_behaviour_params()
+
+    if DEBUG_PARAMS in DEBUG:
+        print("Mail on error:", behaviour_mail_on_error)
 
     # Read the watchlist
     watchlist = read_watchlist()
