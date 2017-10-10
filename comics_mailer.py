@@ -264,7 +264,9 @@ def match_comics(comics, watchlist, only_once=True):
 
 def parse_cli_args():
     parser = ArgumentParser(description="Send email notifications if new watched comics are available.")
+
     parser.add_argument('--clean', '-c', action='store_true', help='Ignore last updates and perform a clean run. May result in receiving notification about comics seen previously.')
+    parser.add_argument('--all-versions', '-a', action='store_true', help='Show all versions of a comic, for example variant covers. Without this option, only the main title is shown.')
 
     return parser.parse_args()
 
@@ -310,9 +312,9 @@ if __name__ == '__main__':
     if DEBUG:
         print(len(updates), "updates")
 
-    # TODO: parameter to show all comic variants
-    comics  = parse_comic_list(updates)
-    matched = match_comics(comics, watchlist)
+    keep_title_only = not cli_args.all_versions
+    comics          = parse_comic_list(updates)
+    matched         = match_comics(comics, watchlist, keep_title_only)
     if len(matched) > 0:
         send_mail_update(matched)
     else:
