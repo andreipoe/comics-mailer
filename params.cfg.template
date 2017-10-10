@@ -6,4 +6,5 @@ to = Your Email <email@tld.com>
 
 [behaviour]
 mail_on_error = true
+log_file = /tmp/comics.log
 

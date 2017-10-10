@@ -6,6 +6,7 @@ import os
 import os.path
 import requests
 import itertools
+import csv
 from pathlib import Path
 from configparser import ConfigParser
 from datetime import date
@@ -20,6 +21,12 @@ CONFIG_FILE_PARAMS    = str(CONFIG_FOLDER / 'params.cfg')
 CONFIG_FILE_WATCHLIST = str(CONFIG_FOLDER / 'watchlist.lst')
 CONFIG_FOLDER         = str(CONFIG_FOLDER) # os.path methods require a string
 
+# Data files
+DATA_FOLDER           = Path.home() / '.local/share/comics-mailer'
+DATA_FILE_LAST_UPDATE = str(DATA_FOLDER / 'last_update')
+DATA_FILE_MATCH_LOG   = str(DATA_FOLDER / 'match.log')
+DATA_FOLDER           = str(DATA_FOLDER) # os.path methods require a string
+
 # Config keys
 CONFIG_SECTION_MAILGUN    = 'mailgun'
 CONFIG_KEY_MAILGUN_KEY    = 'api_key' # Your API key
@@ -30,11 +37,8 @@ CONFIG_KEY_MAILGUN_TO     = 'to'      # The recipient, e.g. as "Name <email@tld.
 CONFIG_SECTION_BEHAVIOUR               = 'behaviour'
 CONFIG_KEY_BEHAVIOUR_MAIL_ON_ERROR     = 'mail_on_error' # Whether to send an email when an error occurs, detailing the error
 CONFIG_DEFAULT_BEHAVIOUR_MAIL_ON_ERROR = True
-
-# Data files
-DATA_FOLDER           = Path.home() / '.local/share/comics-mailer'
-DATA_FILE_LAST_UPDATE = str(DATA_FOLDER / 'last_update')
-DATA_FOLDER           = str(DATA_FOLDER) # os.path methods require a string
+CONFIG_KEY_BEHAVIOUR_LOG_FILE          = 'log_file' # The log file in which matches are saved
+CONFIG_DEFAULT_BEHAVIOUR_LOG_FILE      = DATA_FILE_MATCH_LOG
 
 # Email text
 MAILGUN_SUBJECT_UPDATE = '[comics-mailer] New watched comics available!'
@@ -129,10 +133,11 @@ def read_behaviour_params():
     try:
         behaviour_section = config[CONFIG_SECTION_BEHAVIOUR]
         mail_on_error     = behaviour_section.getboolean(CONFIG_KEY_BEHAVIOUR_MAIL_ON_ERROR, CONFIG_DEFAULT_BEHAVIOUR_MAIL_ON_ERROR)
+        log_file          = behaviour_section.get(CONFIG_KEY_BEHAVIOUR_LOG_FILE, CONFIG_DEFAULT_BEHAVIOUR_LOG_FILE)
 
-        return mail_on_error
+        return mail_on_error, log_file
     except KeyError:
-        return CONFIG_DEFAULT_BEHAVIOUR_MAIL_ON_ERROR
+        return CONFIG_DEFAULT_BEHAVIOUR_MAIL_ON_ERROR, CONFIG_DEFAULT_BEHAVIOUR_LOG_FILE
 
 # Read the watched comics list
 def read_watchlist():
@@ -262,11 +267,34 @@ def match_comics(comics, watchlist, only_once=True):
 
     return matched
 
+# Saved matched comics in a csv log file
+def save_match_log(matches):
+    write_headers, write_mode = False, 'a'
+
+    try:
+        # Create directories as needed
+        if not os.path.exists(os.path.dirname(behaviour_log_file)):
+            os.makedirs(os.path.dirname(behaviour_log_file))
+
+        # If the log file hasn't been used before, write the headers
+        if not os.path.isfile(behaviour_log_file) or os.path.getsize(behaviour_log_file) == 0:
+            write_headers, write_mode = True, 'w'
+
+        with open(behaviour_log_file, write_mode, newline='') as logfile:
+            csvwriter = csv.writer(logfile, quoting=csv.QUOTE_MINIMAL)
+            if write_headers:
+                csvwriter.writerow(['Title','Match Date'])
+            csvwriter.writerows([[comic, date.today().isoformat()] for comic in matches])
+
+    except (OSError, IOError):
+        print("Failed to write to logfile:", behaviour_log_file + '.', "Ensure you have permissions on the selected path.")
+
 def parse_cli_args():
     parser = ArgumentParser(description="Send email notifications if new watched comics are available.")
 
     parser.add_argument('--clean', '-c', action='store_true', help='Ignore last updates and perform a clean run. May result in receiving notification about comics seen previously.')
     parser.add_argument('--all-versions', '-a', action='store_true', help='Show all versions of a comic, for example variant covers. Without this option, only the main title is shown.')
+    parser.add_argument('--log', '-l', action='store_true', help='Store all comic matches in a log file. The file location can be set in the config file.')
 
     return parser.parse_args()
 
@@ -287,10 +315,11 @@ if __name__ == '__main__':
         print("Params:", paramlist)
 
     # Read the behaviour config paramters
-    behaviour_mail_on_error = read_behaviour_params()
+    behaviour_mail_on_error, behaviour_log_file = read_behaviour_params()
 
     if DEBUG_PARAMS in DEBUG:
         print("Mail on error:", behaviour_mail_on_error)
+        print("Log path:", behaviour_log_file)
 
     # Read the watchlist
     watchlist = read_watchlist()
@@ -317,11 +346,11 @@ if __name__ == '__main__':
     matched         = match_comics(comics, watchlist, keep_title_only)
     if len(matched) > 0:
         send_mail_update(matched)
+        if cli_args.log:
+            save_match_log(matched)
     else:
         print("No newer comics available.")
 
     # Save the date of the last update
     save_last_update()
-
-    # TODO: add an option to keep a local log of all matches
 
