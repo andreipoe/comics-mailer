@@ -9,6 +9,7 @@ import itertools
 from pathlib import Path
 from configparser import ConfigParser
 from datetime import date
+from argparse import ArgumentParser
 
 import feedparser
 from bs4 import BeautifulSoup as soup
@@ -261,9 +262,17 @@ def match_comics(comics, watchlist, only_once=True):
 
     return matched
 
+def parse_cli_args():
+    parser = ArgumentParser(description="Send email notifications if new watched comics are available.")
+    parser.add_argument('--clean', '-c', action='store_true', help='Ignore last updates and perform a clean run. May result in receiving notification about comics seen previously.')
+
+    return parser.parse_args()
+
 if __name__ == '__main__':
     # TODO: Consider adding CLI arguments for the mailgun params
     # TODO: add a --setup option that walks thourgh typing in the settings and setting the watch list
+
+    cli_args = parse_cli_args()
 
     # Read the Mailgun config parameters
     mailgun_key, mailgun_domain, mailgun_from, mailgun_to = read_mailgun_params()
@@ -293,8 +302,10 @@ if __name__ == '__main__':
     last_update = get_last_update()
     print("Last update:", last_update)
 
-    # Use only the latest week
-    # TODO: parameter to ignore the last check
+    # Use only the latest week, unless a clean run is requested
+    if cli_args.clean:
+        last_update = None
+        print("Ignoring last update")
     updates = get_rss_entries(last_update)
     if DEBUG:
         print(len(updates), "updates")

@@ -38,6 +38,8 @@ To run the script every Wednesday at 6 pm, you would use the following job:
 
 **Important**: Make sure you have set up your installation as described in [the Configuration section](#configuration). The script will _not_ work unless all the settings are in place.
 
+**TODO**: A future version may be run in a Docker container.
+
 ## Credits
 
 Comics Mailer uses data from the awesome comics release lists at [ComicList](http://www.comiclist.com/index.php) and sends emails through the dead-simple [Mailgun](https://www.mailgun.com/) service. This script is made possible by the [BeatifulSoup](https://www.crummy.com/software/BeautifulSoup/) and the [feedparser](https://pypi.python.org/pypi/feedparser) libraries.
