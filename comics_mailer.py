@@ -4,12 +4,13 @@ import re
 import sys
 import os
 import os.path
+import shutil
 import requests
 import itertools
 import csv
 from pathlib import Path
 from configparser import ConfigParser
-from datetime import date
+from datetime import date, datetime
 from argparse import ArgumentParser
 
 import feedparser
@@ -67,13 +68,13 @@ Comics Mailer'''
 # ComicsList
 FEED_URL = 'http://feeds.feedburner.com/ncrl'
 
-# TODO: disable debugging
 DEBUG_NOMAIL      = 'nomail'
 DEBUG_PARAMS      = 'params'
 DEBUG_DATA        = 'data'
 DEBUG_WATCHLIST   = 'watchlist'
 DEBUG_FORCEUPDATE = 'forceupdate'
-# DEBUG           = "|".join([DEBUG_PARAMS, DEBUG_NOMAIL, DEBUG_DATA, DEBUG_FORCEUPDATE])
+DEBUG_SETUP       = 'setup'
+#DEBUG           = "|".join([DEBUG_PARAMS, DEBUG_NOMAIL, DEBUG_DATA, DEBUG_SETUP])
 DEBUG             = ''
 
 # Error codes
@@ -289,20 +290,84 @@ def save_match_log(matches):
     except (OSError, IOError):
         print("Failed to write to logfile:", behaviour_log_file + '.', "Ensure you have permissions on the selected path.")
 
+# Get the text to display to the user when setting up params
+def get_setup_text():
+    d = {}
+
+    d[CONFIG_SECTION_MAILGUN + '/' + CONFIG_KEY_MAILGUN_KEY]    = 'Enter your Mailgun API key'
+    d[CONFIG_SECTION_MAILGUN + '/' + CONFIG_KEY_MAILGUN_DOMAIN] = 'Enter your Mailgun domain'
+    d[CONFIG_SECTION_MAILGUN + '/' + CONFIG_KEY_MAILGUN_FROM]   = 'Enter your Mailgun from address'
+    d[CONFIG_SECTION_MAILGUN + '/' + CONFIG_KEY_MAILGUN_TO]     = 'Enter your recipient email address'
+
+    d[CONFIG_SECTION_BEHAVIOUR + '/' + CONFIG_KEY_BEHAVIOUR_MAIL_ON_ERROR] = 'Do you want to receive emails when an error is encountered? (yes/no)'
+    d[CONFIG_SECTION_BEHAVIOUR + '/' + CONFIG_KEY_BEHAVIOUR_LOG_FILE]      = 'Log file (used only when running with --log)'
+
+    return d
+
+# Prompt the user to set the value of a param
+def setup_single_param(p, config):
+    section, key = p.split('/')
+    text         = get_setup_text()
+    done         = False
+
+    while not done:
+        print(text[p], '[' + config.get(section, key, fallback='') + ']:', end=' ')
+        user_input = input()
+        done       = True
+
+        if user_input != '':
+            config[section][key] = user_input
+        elif section == CONFIG_SECTION_MAILGUN:
+            done = False # Don't allow empty responses for Mailgun params
+
+# Interactive setup walking though all the configuration parameters
+def run_setup():
+
+    # List the params to set up as 'section/key'
+    params = []
+    for k in [CONFIG_KEY_MAILGUN_KEY, CONFIG_KEY_MAILGUN_DOMAIN, CONFIG_KEY_MAILGUN_FROM, CONFIG_KEY_MAILGUN_TO]:
+        params += [CONFIG_SECTION_MAILGUN + '/' + k]
+    for k in [CONFIG_KEY_BEHAVIOUR_MAIL_ON_ERROR, CONFIG_KEY_BEHAVIOUR_LOG_FILE]:
+        params += [CONFIG_SECTION_BEHAVIOUR + '/' + k]
+
+    # If a config file already exists, back it up first
+    if os.path.isfile(CONFIG_FILE_PARAMS):
+       ts      = datetime.now().strftime("%Y%m%d-%H%M")
+       bakname = CONFIG_FILE_PARAMS + '.bak-' + ts
+       if DEBUG_SETUP not in DEBUG:
+           shutil.copyfile(CONFIG_FILE_PARAMS, bakname)
+       print("Found previous configuration data. It was copied to", bakname + ".")
+
+    # Go thorugh each of the paramers, updating with the user's input
+    config = ConfigParser()
+    config.read(CONFIG_FILE_PARAMS)
+    for p in params:
+        setup_single_param(p, config)
+
+    if DEBUG_SETUP in DEBUG:
+        print(config.items(CONFIG_SECTION_MAILGUN))
+        print(config.items(CONFIG_SECTION_BEHAVIOUR))
+    else:
+        with open(CONFIG_FILE_PARAMS, 'w') as configfile:
+            config.write(configfile)
+
 def parse_cli_args():
     parser = ArgumentParser(description="Send email notifications if new watched comics are available.")
 
     parser.add_argument('--clean', '-c', action='store_true', help='Ignore last updates and perform a clean run. May result in receiving notification about comics seen previously.')
     parser.add_argument('--all-versions', '-a', action='store_true', help='Show all versions of a comic, for example variant covers. Without this option, only the main title is shown.')
     parser.add_argument('--log', '-l', action='store_true', help='Store all comic matches in a log file. The file location can be set in the config file.')
+    parser.add_argument('--setup', action='store_true', help='Run an interactive setup to configure the user parameters.')
 
     return parser.parse_args()
 
 if __name__ == '__main__':
-    # TODO: Consider adding CLI arguments for the mailgun params
-    # TODO: add a --setup option that walks thourgh typing in the settings and setting the watch list
-
     cli_args = parse_cli_args()
+
+    # Run the interactive setup and exit if so requested
+    if cli_args.setup:
+        run_setup()
+        sys.exit(0)
 
     # Read the Mailgun config parameters
     mailgun_key, mailgun_domain, mailgun_from, mailgun_to = read_mailgun_params()

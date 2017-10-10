@@ -20,10 +20,8 @@ pip3 install --upgrade feedparser beauutifulsoup4 requests
 
 Before you can use Comics Mailer, you need to configure it. This is done thorugh two main files:
 
-* `$HOME/.config/comics-mailer/params.cfg` is an ini-like configuration file that contains the Mailgun API key and domain used to send emails. See  `params.cfg.template` in this repo for the paramters you need to configure.
+* `$HOME/.config/comics-mailer/params.cfg` is an ini-like configuration file that contains the Mailgun API key and domain used to send emails. See  `params.cfg.template` in this repo for the paramters you need to configure, or run with `--setup` for an interactive process.
 * `$HOME/.config/comics-mailer/watchlist.lst` is the list of comics for which you want to receive alerts. Enter a (partial) title on each line; blank lines and lines starting with `#` are ignored, and the matching is case-insensitive.
-
-**TODO**: A future version may include an interactive initial setup procedure.
 
 ## Usage
 
