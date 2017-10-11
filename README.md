@@ -41,7 +41,35 @@ To run the script every Wednesday at 6 pm, you would use the following job:
 
 **Important**: Make sure you have set up your installation as described in [the Configuration section](#configuration). The script will _not_ work unless all the settings are in place.
 
-**TODO**: A future version may be run in a Docker container.
+### Running in Docker
+
+You can run Comics Mailer in a Docker container. To do this, first obtain the image from DockerHub:
+
+```
+docker pull andreipoe/comics-mailer
+```
+
+... or build it yourself:
+
+```
+docker build -t andreipoe/comics-mailer .
+```
+
+Then, set up two directories to hold the application data, for example:
+
+```
+mkdir -p /docker-data/comics-mailer/{data,config}
+```
+
+Next, set up your configuration as described above and place the relevant files in the `config` folder you have just created. Finally, run the container using your data folders:
+
+```
+docker run -d --name comics-mailer --restart unless-stopped -v /docker-data/comics-mailer/data:/comics-mailer/data -v /docker-data/comics-mailer/config:/comics-mailer/config andreipoe/comics-mailer
+```
+
+By default, the application inside the container runs at 6 PM every Wednesday. To override the schedule, set the `CRON` envrionment variable in the container to a valid `cron` string. For example, to run every day at 10 PM you would set `-e CRON='0 22 * * *'` in your `docker run` command (don't forget the quotes, otherwise your shell might try to expand the wildcards).
+
+You will be able to see the application's progress through the `last_run.log` file in the `data` volume.
 
 ## Credits
 
