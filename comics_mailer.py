@@ -74,6 +74,7 @@ DEBUG_DATA        = 'data'
 DEBUG_WATCHLIST   = 'watchlist'
 DEBUG_FORCEUPDATE = 'forceupdate'
 DEBUG_SETUP       = 'setup'
+DEBUG_NOSAVE      = 'nosave'
 #DEBUG           = "|".join([DEBUG_PARAMS, DEBUG_NOMAIL, DEBUG_DATA, DEBUG_SETUP])
 DEBUG             = ''
 
@@ -357,6 +358,7 @@ def parse_cli_args():
     parser.add_argument('--clean', '-c', action='store_true', help='Ignore last updates and perform a clean run. May result in receiving notification about comics seen previously.')
     parser.add_argument('--all-versions', '-a', action='store_true', help='Show all versions of a comic, for example variant covers. Without this option, only the main title is shown.')
     parser.add_argument('--log', '-l', action='store_true', help='Store all comic matches in a log file. The file location can be set in the config file.')
+    parser.add_argument('--dry-run', '-d', action='store_true', help='Run the script as normal, but do not send an email result and do not record the last update. Useful for quick checking that everything works.')
     parser.add_argument('--setup', action='store_true', help='Run an interactive setup to configure the user parameters.')
 
     return parser.parse_args()
@@ -368,6 +370,8 @@ if __name__ == '__main__':
     if cli_args.setup:
         run_setup()
         sys.exit(0)
+    elif cli_args.dry_run:
+        DEBUG += '|'.join(['', DEBUG_NOMAIL, DEBUG_NOSAVE])
 
     # Read the Mailgun config parameters
     mailgun_key, mailgun_domain, mailgun_from, mailgun_to = read_mailgun_params()
@@ -403,8 +407,8 @@ if __name__ == '__main__':
         last_update = None
         print("Ignoring last update")
     updates = get_rss_entries(last_update)
-    if DEBUG:
-        print(len(updates), "updates")
+    if DEBUG != '':
+        print(len(updates), "feed entries")
 
     keep_title_only = not cli_args.all_versions
     comics          = parse_comic_list(updates)
@@ -417,5 +421,6 @@ if __name__ == '__main__':
         print("No newer comics available.")
 
     # Save the date of the last update
-    save_last_update()
+    if not DEBUG_NOSAVE in DEBUG:
+        save_last_update()
 
