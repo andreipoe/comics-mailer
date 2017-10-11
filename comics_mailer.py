@@ -203,7 +203,7 @@ def send_mail_error(errcode, msg=None):
 
     if errcode == ERR_NO_FEED:
         err_msg = ERR_MSG_NO_FEED
-    elif errocode == ERR_NO_CONFIG:
+    elif errcode == ERR_NO_CONFIG:
         err_msg = ERR_MSG_NO_CONFIG
     elif msg is not None:
         err_msg = msg
@@ -317,6 +317,8 @@ def setup_single_param(p, config):
         done       = True
 
         if user_input != '':
+            if section not in config:
+                config[section] = {}
             config[section][key] = user_input
         elif section == CONFIG_SECTION_MAILGUN:
             done = False # Don't allow empty responses for Mailgun params
@@ -349,6 +351,8 @@ def run_setup():
         print(config.items(CONFIG_SECTION_MAILGUN))
         print(config.items(CONFIG_SECTION_BEHAVIOUR))
     else:
+        if not os.path.isdir(CONFIG_FOLDER):
+            os.makedirs(CONFIG_FOLDER)
         with open(CONFIG_FILE_PARAMS, 'w') as configfile:
             config.write(configfile)
 
