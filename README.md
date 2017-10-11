@@ -8,13 +8,18 @@ Clone this repository using `git`.
 
 ### Dependencies
 
-Comics Mailer uses python3. You can install the dependcies using:
+Comics Mailer uses python3 and you can install it using `pip3`:
 
 ```
-pip3 install --upgrade feedparser beauutifulsoup4 requests
+pip3 install comics-mailer
 ```
 
-**TODO**: A future version may allow installation through pip.
+Alternatively, you can clone this repository and install the dependcies manually using:
+
+```
+git clone https://github.com/andreipoe/comics-mailer.git
+pip3 install --upgrade feedparser beautifulsoup4 requests
+```
 
 ## Configuration
 

@@ -96,7 +96,7 @@ behaviour_mail_on_error = CONFIG_DEFAULT_BEHAVIOUR_MAIL_ON_ERROR
 def err_exit(msg, code=1):
     print(msg, file=sys.stderr)
 
-    if behaviour_mail_on_error:
+    if behaviour_mail_on_error and code != ERR_NO_CONFIG:
         send_mail_error(code, msg)
 
     sys.exit(code)
@@ -367,7 +367,7 @@ def parse_cli_args():
 
     return parser.parse_args()
 
-if __name__ == '__main__':
+def main():
     cli_args = parse_cli_args()
 
     # Run the interactive setup and exit if so requested
@@ -375,9 +375,11 @@ if __name__ == '__main__':
         run_setup()
         sys.exit(0)
     elif cli_args.dry_run:
+        global DEBUG
         DEBUG += '|'.join(['', DEBUG_NOMAIL, DEBUG_NOSAVE])
 
     # Read the Mailgun config parameters
+    global mailgun_key, mailgun_domain, mailgun_from, mailgun_to
     mailgun_key, mailgun_domain, mailgun_from, mailgun_to = read_mailgun_params()
     paramlist = [mailgun_key, mailgun_domain, mailgun_from, mailgun_to]
     if None in paramlist:
@@ -388,6 +390,7 @@ if __name__ == '__main__':
         print("Params:", paramlist)
 
     # Read the behaviour config paramters
+    global behaviour_mail_on_error, behaviour_log_file
     behaviour_mail_on_error, behaviour_log_file = read_behaviour_params()
 
     if DEBUG_PARAMS in DEBUG:
@@ -427,4 +430,7 @@ if __name__ == '__main__':
     # Save the date of the last update
     if not DEBUG_NOSAVE in DEBUG:
         save_last_update()
+
+if __name__ == '__main__':
+    main()
 
