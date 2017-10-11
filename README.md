@@ -61,7 +61,13 @@ Then, set up two directories to hold the application data, for example:
 mkdir -p /docker-data/comics-mailer/{data,config}
 ```
 
-Next, set up your configuration as described above and place the relevant files in the `config` folder you have just created. Finally, run the container using your data folders:
+Next, set up your configuration as described above and place the relevant files in the `config` folder you have just created. As an alternative, you can run a one-off container to guide you through the setup process.
+
+```
+docker run -it --rm -v /docker-data/comics-mailer/data:/comics-mailer/data -v /docker-data/comics-mailer/config:/comics-mailer/config andreipoe/comics-mailer --setup
+```
+
+Finally, run the container using your data folders (if you've used the setup container, make sure you use the same data folders in both):
 
 ```
 docker run -d --name comics-mailer --restart unless-stopped -v /docker-data/comics-mailer/data:/comics-mailer/data -v /docker-data/comics-mailer/config:/comics-mailer/config andreipoe/comics-mailer

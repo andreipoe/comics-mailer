@@ -23,8 +23,7 @@ ENV CRON '0 18 * * 3'
 
 VOLUME ["/comics-mailer/data", "/comics-mailer/config"]
 
-# TODO: handle --setup in some way
-
 # Run the startup script as root to set permissions properly. This will drop down to the unprivilleged user for the actual application.
-CMD ["/bin/sh", "/comics-mailer/code/startup.sh"]
+ENTRYPOINT ["/bin/sh", "/comics-mailer/code/startup.sh"]
+CMD ["run"]
 
